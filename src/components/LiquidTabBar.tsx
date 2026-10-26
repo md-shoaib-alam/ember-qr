@@ -31,6 +31,15 @@ const FX: Fx[] = ['pop', 'spin', 'wave', 'glow'];
 
 const PAD = 14; // canvas bleed around the pill, for shadows and ripples
 const BAR_PAD = 8; // inner padding of the pill, matches styles.bar
+// How long the water keeps flowing after the last touch before the loop parks itself.
+const IDLE_MS = 1400;
+
+// Uniform payloads are mutated in place: allocating them per frame fed the GC 60 times a second.
+const BLOBS = new Float32Array(24);
+const SY = new Float32Array(6);
+const RIPS = new Float32Array(24);
+
+const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 const FG = '#0B132B';
 const FG_SOFT = 'rgba(11,19,43,0.60)';
@@ -101,6 +110,7 @@ function makeState() {
     moving: false,
     split: false,
     ready: false,
+    activeAt: 0,
     w: 0,
     h: 0,
     visible: true,
@@ -262,20 +272,37 @@ export function LiquidTabBar({ state, descriptors, emitter, navigateToTab, inset
       gl.uniform1f(u.uDpr, dpr);
       gl.uniform1f(u.uTime, st.time);
       gl.uniform4f(u.uPill, PAD, PAD, st.w, st.h);
-      const blobs = new Float32Array(24);
-      const sy = new Float32Array(6).fill(1);
+      BLOBS.fill(0);
+      SY.fill(1);
       const head = st.lead === 0 ? st.a : st.b, tail = st.lead === 0 ? st.b : st.a;
-      blobs.set(
-        [head.x, T.cy, st.q * (1 - 0.25 * thin), T.r * (1 - 0.12 * thin), tail.x, T.cy, st.q * (1 - 0.8 * thin), T.r * (1 - 0.5 * thin)],
-        0,
-      );
-      sy[0] = sy[1] = st.sy.s;
-      st.sats.slice(0, 4).forEach((d, i) => blobs.set([d.x, d.y, 0, d.r], 8 + i * 4));
-      gl.uniform4fv(u.uBlob, blobs);
-      gl.uniform1fv(u.uSy, sy);
-      const rips = new Float32Array(24);
-      st.rips.slice(-6).forEach((p, i) => rips.set([p.x, p.y, p.age, p.amp], i * 4));
-      gl.uniform4fv(u.uRip, rips);
+      BLOBS[0] = head.x;
+      BLOBS[1] = T.cy;
+      BLOBS[2] = st.q * (1 - 0.25 * thin);
+      BLOBS[3] = T.r * (1 - 0.12 * thin);
+      BLOBS[4] = tail.x;
+      BLOBS[5] = T.cy;
+      BLOBS[6] = st.q * (1 - 0.8 * thin);
+      BLOBS[7] = T.r * (1 - 0.5 * thin);
+      SY[0] = SY[1] = st.sy.s;
+      for (let i = 0; i < st.sats.length && i < 4; i++) {
+        const d = st.sats[i];
+        BLOBS[8 + i * 4] = d.x;
+        BLOBS[9 + i * 4] = d.y;
+        BLOBS[11 + i * 4] = d.r;
+      }
+      gl.uniform4fv(u.uBlob, BLOBS);
+      gl.uniform1fv(u.uSy, SY);
+      RIPS.fill(0);
+      const first = Math.max(0, st.rips.length - 6);
+      for (let i = first; i < st.rips.length; i++) {
+        const p = st.rips[i];
+        const o = (i - first) * 4;
+        RIPS[o] = p.x;
+        RIPS[o + 1] = p.y;
+        RIPS[o + 2] = p.age;
+        RIPS[o + 3] = p.amp;
+      }
+      gl.uniform4fv(u.uRip, RIPS);
       gl.uniform3f(u.uMouse, st.mouse.x, st.mouse.y, st.mouse.s);
       gl.uniform1f(u.uDark, 0);
       gl.uniform1f(u.uAmb, st.reduce ? 0 : 1);
@@ -303,8 +330,10 @@ export function LiquidTabBar({ state, descriptors, emitter, navigateToTab, inset
       step(st, dt, now);
       draw();
       const busy = st.moving || st.rips.length > 0 || st.sats.length > 0 || st.mouse.s > 0.01;
-      // ambient water keeps moving while visible; reduced-motion only animates on change
-      if (st.visible && (!st.reduce || busy)) st.raf = requestAnimationFrame(tick);
+      // Ambient water only runs while something is happening: a still pill looks the same, and a
+      // perpetual 60 fps JS loop over a full-screen-invalidated blur is the app's biggest idle cost.
+      const alive = busy || (!st.reduce && now - st.activeAt < IDLE_MS);
+      if (st.visible && alive) st.raf = requestAnimationFrame(tick);
       else st.raf = 0;
     };
     st.raf = requestAnimationFrame(tick);
@@ -314,6 +343,7 @@ export function LiquidTabBar({ state, descriptors, emitter, navigateToTab, inset
     const st = stRef.current;
     const T = st.t;
     if (!st.w) return;
+    st.activeAt = nowMs();
     const itemW = (st.w - BAR_PAD * 2) / state.routes.length;
     const nx = PAD + BAR_PAD + itemW * (i + 0.5);
     if (!st.ready) {
@@ -322,7 +352,7 @@ export function LiquidTabBar({ state, descriptors, emitter, navigateToTab, inset
       st.ready = true;
     } else if (Math.abs(nx - T.x) > 0.5) {
       st.lead = Math.abs(nx - st.a.x) <= Math.abs(nx - st.b.x) ? 0 : 1;
-      st.lagFrom = (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 70;
+      st.lagFrom = nowMs() + 70;
       st.moving = true;
       st.split = false;
     }
@@ -346,6 +376,7 @@ export function LiquidTabBar({ state, descriptors, emitter, navigateToTab, inset
   function ripple(x: number, y: number, amp: number) {
     const st = stRef.current;
     if (st.reduce) return;
+    st.activeAt = nowMs();
     st.rips.push({ x, y, age: 0, amp });
     loop();
   }
@@ -400,7 +431,10 @@ export function LiquidTabBar({ state, descriptors, emitter, navigateToTab, inset
     });
     const app = AppState.addEventListener('change', (next) => {
       st.visible = next === 'active';
-      if (st.visible) loop();
+      if (st.visible) {
+        st.activeAt = nowMs();
+        loop();
+      }
     });
     return () => {
       on = false;

@@ -23,8 +23,8 @@ import { bgFor, useTheme, useThemeMode, type Scheme } from '@/theme';
  * large size (committing the theme mid-swap), then collapses back into the button.
  */
 
-const SWAP_MS = 1000;
-const TRAVEL_MS = 340;
+const SWAP_MS = 480;
+const TRAVEL_MS = 260;
 const STEPS = 30;
 const ARC_RADIUS = 115;
 const QUARTER_TURN = Math.PI / 2;
@@ -87,9 +87,11 @@ const CLOCK = Array.from({ length: STEPS + 1 }, (_, i) => i / STEPS);
 
 type BodyKey = 'moon' | 'sun';
 
-function flightStyle(key: BodyKey, role: 'set' | 'rise', master: Animated.Value): ViewStyle {
+// Percentages cannot ride the native driver, so translations are resolved against the body's box.
+function flightStyle(key: BodyKey, role: 'set' | 'rise', master: Animated.Value, size: number): ViewStyle {
   const inputRange = role === 'set' ? SET_IN : RISE_IN;
   const s = (role === 'set' ? SET : RISE)[key];
+  const k = size / 100;
   const nums = (pick: (v: Sample) => number) =>
     master.interpolate({ inputRange, outputRange: s.map(pick), extrapolate: 'clamp' });
   const strs = (pick: (v: Sample) => string) =>
@@ -97,22 +99,20 @@ function flightStyle(key: BodyKey, role: 'set' | 'rise', master: Animated.Value)
   return {
     opacity: nums((v) => v.op),
     transform: [
-      { translateX: strs((v) => `${v.x}%`) },
-      { translateY: strs((v) => `${v.y}%`) },
+      { translateX: nums((v) => v.x * k) },
+      { translateY: nums((v) => v.y * k) },
       { rotate: strs((v) => `${v.rot}deg`) },
       { scale: nums((v) => v.sc) },
     ],
   } as unknown as ViewStyle;
 }
 
-function restStyle(key: BodyKey, visible: boolean): ViewStyle {
+function restStyle(key: BodyKey, visible: boolean, size: number): ViewStyle {
   const side = key === 'moon' ? MOON.side : SUN.side;
+  const offset = (side * ARC_RADIUS * size) / 100;
   return visible
     ? { opacity: 1, transform: [] }
-    : {
-        opacity: 0,
-        transform: [{ translateX: `${side * ARC_RADIUS}%` }, { translateY: `${ARC_RADIUS}%` }],
-      };
+    : { opacity: 0, transform: [{ translateX: offset }, { translateY: offset }] };
 }
 
 const SKY_BANDS = 36;
@@ -166,8 +166,12 @@ function Face({ size, flight, master, scheme, twinkle }: FaceProps) {
     : scheme === 'light'
       ? 1
       : 0;
-  const moonStyle = flight ? flightStyle('moon', flight.from === 'dark' ? 'set' : 'rise', master) : restStyle('moon', scheme === 'dark');
-  const sunStyle = flight ? flightStyle('sun', flight.from === 'light' ? 'set' : 'rise', master) : restStyle('sun', scheme === 'light');
+  const moonStyle = flight
+    ? flightStyle('moon', flight.from === 'dark' ? 'set' : 'rise', master, size)
+    : restStyle('moon', scheme === 'dark', size);
+  const sunStyle = flight
+    ? flightStyle('sun', flight.from === 'light' ? 'set' : 'rise', master, size)
+    : restStyle('sun', scheme === 'light', size);
   const starScale = size / 40;
 
   return (
@@ -215,7 +219,7 @@ type Overlay = Geo & { flight: Flight };
 // expo-router detaches inactive tab scenes, so measureInWindow can answer with a 0x0 rect,
 // or not answer at all. Both cases get a deadline instead of relying on the callback.
 const MEASURE_MS = 250;
-const SEQUENCE_MS = TRAVEL_MS * 2 + SWAP_MS + 900;
+const SEQUENCE_MS = TRAVEL_MS * 2 + SWAP_MS + 500;
 
 export function SunMoonToggle({ size = 44 }: { size?: number }) {
   const c = useTheme();
@@ -249,19 +253,20 @@ export function SunMoonToggle({ size = 44 }: { size?: number }) {
     };
   }, []);
 
+  // Stars are only painted while the night sky is, so the loops must not burn frames in light mode.
   useEffect(() => {
-    if (reduce) return;
+    if (reduce || scheme !== 'dark') return;
     const loops = twinkle.map((v, i) =>
       Animated.loop(
         Animated.sequence([
-          Animated.timing(v, { toValue: 1, duration: STARS[i].t / 2, useNativeDriver: false }),
-          Animated.timing(v, { toValue: 0.35, duration: STARS[i].t / 2, useNativeDriver: false }),
+          Animated.timing(v, { toValue: 1, duration: STARS[i].t / 2, useNativeDriver: true }),
+          Animated.timing(v, { toValue: 0.35, duration: STARS[i].t / 2, useNativeDriver: true }),
         ]),
       ),
     );
     loops.forEach((l) => l.start());
     return () => loops.forEach((l) => l.stop());
-  }, [reduce, twinkle]);
+  }, [reduce, scheme, twinkle]);
 
   useEffect(
     () => () => {
@@ -311,13 +316,16 @@ export function SunMoonToggle({ size = 44 }: { size?: number }) {
     swap.setValue(0);
     arm(id, SEQUENCE_MS);
 
+    // `travel` stays on the JS driver: it drives the overlay that mounts in this same commit, and a
+    // native animation started before its view attaches is not worth the risk. Only its two short
+    // legs are JS; the long arc, sky cross-fade and starfield ride the native driver.
     Animated.timing(travel, { toValue: 1, duration: TRAVEL_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(
       ({ finished }) => {
         if (!live(id)) return;
         // Commit on the first leg, not the last: an interrupted trip home must not undo the tap.
         commit(id);
         if (!finished) return finish(id);
-        Animated.timing(swap, { toValue: 1, duration: SWAP_MS, easing: Easing.linear, useNativeDriver: false }).start(({ finished: swapped }) => {
+        Animated.timing(swap, { toValue: 1, duration: SWAP_MS, easing: Easing.linear, useNativeDriver: true }).start(({ finished: swapped }) => {
           if (!live(id)) return;
           if (!swapped) return finish(id);
           const backHome = () =>
