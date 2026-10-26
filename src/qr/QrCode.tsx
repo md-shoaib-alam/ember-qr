@@ -1,11 +1,7 @@
-import createQr from 'qrcode-generator';
+import { qr, type Module } from 'headless-qr';
 import { View } from 'react-native';
 
 const QUIET_ZONE = 4;
-
-// The library's default encoder keeps only the low byte of each character, which garbles Bangla and emoji.
-// eslint-disable-next-line import/no-named-as-default-member -- the library reads this property at encode time
-createQr.stringToBytes = (s: string) => Array.from(new TextEncoder().encode(s));
 
 type Cell = { x: number; y: number; s: number; r: number; dark: boolean };
 export type QrMatrix = { size: number; cells: Cell[] };
@@ -24,20 +20,19 @@ function roundedRect(x: number, y: number, size: number, radius: number) {
 
 // Returns null when the content is too long to fit in any QR code version.
 export function encodeQr(payload: string): QrMatrix | null {
-  const qr = createQr(0, 'M');
+  let modules: Module[][];
   try {
-    qr.addData(payload, 'Byte');
-    qr.make();
+    modules = qr(payload, { correction: 'M' });
   } catch {
     return null;
   }
 
-  const size = qr.getModuleCount();
+  const size = modules.length;
   const cells: Cell[] = [];
   // Rounded modules keep the friendly look; full squares scan more reliably than dots.
   for (let y = 0; y < size; y++)
     for (let x = 0; x < size; x++)
-      if (qr.isDark(y, x) && !inFinder(y, x, size)) cells.push({ x: x + 0.05, y: y + 0.05, s: 0.9, r: 0.3, dark: true });
+      if (modules[y][x] === true && !inFinder(y, x, size)) cells.push({ x: x + 0.05, y: y + 0.05, s: 0.9, r: 0.3, dark: true });
 
   const corners = [
     [0, 0],
