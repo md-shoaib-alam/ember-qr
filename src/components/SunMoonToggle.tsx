@@ -11,7 +11,6 @@ import {
   View,
   type ViewStyle,
   type ViewInstance,
-  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -209,24 +208,45 @@ function Face({ size, flight, master, scheme, twinkle }: FaceProps) {
 
 type BtnRect = { x: number; y: number; w: number; h: number };
 
+/** Overlay geometry, frozen at press time so a keyboard or tab re-layout cannot move the circle. */
+type Geo = { rect: BtnRect; cx: number; cy: number; big: number; offsetY: number };
+type Overlay = Geo & { flight: Flight };
+
+// expo-router detaches inactive tab scenes, so measureInWindow can answer with a 0x0 rect,
+// or not answer at all. Both cases get a deadline instead of relying on the callback.
+const MEASURE_MS = 250;
+const SEQUENCE_MS = TRAVEL_MS * 2 + SWAP_MS + 900;
+
 export function SunMoonToggle({ size = 44 }: { size?: number }) {
   const c = useTheme();
   const { scheme, toggle } = useThemeMode();
-  const { width: cw, height: ch } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  // On Android the Modal covers the status bar while the app root starts below it, so
-  // window-measured coordinates need the top inset to land in the Modal's space.
-  const offsetY = Platform.OS === 'android' && Dimensions.get('screen').height > ch ? insets.top : 0;
   const [reduce, setReduce] = useState(false);
   const [traveling, setTraveling] = useState(false);
-  const [overlay, setOverlay] = useState<{ rect: BtnRect; flight: Flight } | null>(null);
+  const [overlay, setOverlay] = useState<Overlay | null>(null);
   const [twinkle] = useState(() => STARS.map(() => new Animated.Value(0.35)));
   const [travel] = useState(() => new Animated.Value(0));
   const [swap] = useState(() => new Animated.Value(0));
   const btnRef = useRef<ViewInstance>(null);
+  // `traveling` is state, so two taps landing inside the async measure window would both pass it.
+  const busy = useRef(false);
+  const committed = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Monotonic run id: a watchdog exit retires a run, and any callback it leaves in flight must
+  // not be mistaken for a callback of the run the next tap starts.
+  const run = useRef(0);
 
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setReduce);
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((r) => {
+      if (alive) setReduce(r);
+    });
+    // Each tab keeps its own toggle, so a live setting change has to reach the mounted ones.
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduce);
+    return () => {
+      alive = false;
+      sub.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -245,57 +265,112 @@ export function SunMoonToggle({ size = 44 }: { size?: number }) {
 
   useEffect(
     () => () => {
+      if (timer.current) clearTimeout(timer.current);
       travel.stopAnimation();
       swap.stopAnimation();
     },
     [travel, swap],
   );
 
+  const live = (id: number) => busy.current && run.current === id;
+
+  /** The one place a tap is honoured: whichever leg notices first, and never twice. */
+  function commit(id: number) {
+    if (run.current !== id || committed.current) return;
+    committed.current = true;
+    toggle();
+  }
+
+  /** The single exit from a run: always leaves the button idle, never loses the tap. */
+  function finish(id: number) {
+    if (!live(id)) return;
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    busy.current = false;
+    commit(id);
+    // A watchdog exit lands mid-timing; the legs must not keep driving the value the next run resets.
+    travel.stopAnimation();
+    swap.stopAnimation();
+    setOverlay(null);
+    setTraveling(false);
+    swap.setValue(0);
+    travel.setValue(0);
+  }
+
+  function arm(id: number, ms: number) {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => finish(id), ms);
+  }
+
+  function play(id: number, geo: Geo) {
+    setOverlay({ ...geo, flight: { from: scheme, to: scheme === 'dark' ? 'light' : 'dark' } });
+    setTraveling(true);
+    travel.setValue(0);
+    swap.setValue(0);
+    arm(id, SEQUENCE_MS);
+
+    Animated.timing(travel, { toValue: 1, duration: TRAVEL_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(
+      ({ finished }) => {
+        if (!live(id)) return;
+        // Commit on the first leg, not the last: an interrupted trip home must not undo the tap.
+        commit(id);
+        if (!finished) return finish(id);
+        Animated.timing(swap, { toValue: 1, duration: SWAP_MS, easing: Easing.linear, useNativeDriver: false }).start(({ finished: swapped }) => {
+          if (!live(id)) return;
+          if (!swapped) return finish(id);
+          const backHome = () =>
+            Animated.timing(travel, { toValue: 0, duration: TRAVEL_MS, easing: Easing.in(Easing.cubic), useNativeDriver: false }).start(() => finish(id));
+          if (!btnRef.current) return backHome();
+          // Re-measure so the circle lands on the button even if layout shifted, but the
+          // return leg must not depend on the answer arriving.
+          btnRef.current.measureInWindow((bx, by, bw, bh) => {
+            if (!live(id)) return;
+            if (bw > 0 && bh > 0) setOverlay((prev) => (prev ? { ...prev, rect: { x: bx, y: by + geo.offsetY, w: bw, h: bh } } : prev));
+            backHome();
+          });
+        });
+      },
+    );
+  }
+
   function press() {
+    if (busy.current) return;
     if (reduce) {
       toggle();
       return;
     }
-    if (traveling) return;
+    const id = ++run.current;
+    busy.current = true;
+    committed.current = false;
+
+    const win = Dimensions.get('window');
+    // On Android the Modal covers the status bar while the app root starts below it, so
+    // window-measured coordinates need the top inset to land in the Modal's space.
+    const offsetY = Platform.OS === 'android' && Dimensions.get('screen').height > win.height ? insets.top : 0;
+    const geo: Geo = {
+      rect: { x: 0, y: 0, w: 0, h: 0 },
+      cx: win.width / 2,
+      cy: (win.height + offsetY) / 2,
+      big: Math.min(win.width, win.height) * 0.7,
+      offsetY,
+    };
+
+    arm(id, MEASURE_MS);
     btnRef.current?.measureInWindow((x, y, w, h) => {
-      const flight: Flight = { from: scheme, to: scheme === 'dark' ? 'light' : 'dark' };
-      setOverlay({ rect: { x, y: y + offsetY, w, h }, flight });
-      setTraveling(true);
-      travel.setValue(0);
-      swap.setValue(0);
-      Animated.timing(travel, { toValue: 1, duration: TRAVEL_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(
-        ({ finished }) => {
-          if (!finished) return;
-          toggle();
-          Animated.timing(swap, { toValue: 1, duration: SWAP_MS, easing: Easing.linear, useNativeDriver: false }).start(({ finished: done }) => {
-            if (!done) return;
-            // Re-measure: layout may have shifted while the overlay was up, and the circle must land back on the button.
-            btnRef.current?.measureInWindow((bx, by, bw, bh) => {
-              setOverlay((prev) => (prev ? { ...prev, rect: { x: bx, y: by + offsetY, w: bw, h: bh } } : prev));
-              Animated.timing(travel, { toValue: 0, duration: TRAVEL_MS, easing: Easing.in(Easing.cubic), useNativeDriver: false }).start(
-                ({ finished: back }) => {
-                  if (!back) return;
-                  setOverlay(null);
-                  setTraveling(false);
-                  swap.setValue(0);
-                  travel.setValue(0);
-                },
-              );
-            });
-          });
-        },
-      );
+      if (!live(id)) return;
+      if (w <= 0 || h <= 0) return finish(id);
+      play(id, { ...geo, rect: { x, y: y + offsetY, w, h } });
     });
   }
 
-  const big = Math.min(cw, ch) * 0.7;
   let circleStyle: ViewStyle | null = null;
   if (overlay) {
-    const cx = cw / 2;
-    const cy = (ch + offsetY) / 2;
-    const tx = overlay.rect.x + overlay.rect.w / 2 - cx;
-    const ty = overlay.rect.y + overlay.rect.h / 2 - cy;
-    const sc = overlay.rect.w / big;
+    const { rect, cx, cy, big } = overlay;
+    const tx = rect.x + rect.w / 2 - cx;
+    const ty = rect.y + rect.h / 2 - cy;
+    const sc = rect.w / big;
     circleStyle = {
       left: cx - big / 2,
       top: cy - big / 2,
@@ -334,7 +409,7 @@ export function SunMoonToggle({ size = 44 }: { size?: number }) {
       </Pressable>
 
       {overlay && circleStyle && (
-        <Modal visible transparent animationType="none" statusBarTranslucent>
+        <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => finish(run.current)}>
           <View style={StyleSheet.absoluteFill}>
             <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: travel }]}>
               <View style={[StyleSheet.absoluteFill, { backgroundColor: bgFor(overlay.flight.from) }]}>
@@ -347,7 +422,7 @@ export function SunMoonToggle({ size = 44 }: { size?: number }) {
               </View>
             </Animated.View>
             <Animated.View pointerEvents="none" style={[styles.circle, circleStyle]}>
-              <Face size={big} flight={overlay.flight} master={swap} scheme={overlay.flight.from} twinkle={twinkle} />
+              <Face size={overlay.big} flight={overlay.flight} master={swap} scheme={overlay.flight.from} twinkle={twinkle} />
             </Animated.View>
           </View>
         </Modal>
