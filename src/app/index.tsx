@@ -1,23 +1,33 @@
 import { useState } from 'react';
+import { Keyboard } from 'react-native';
 
+import { Button } from '@/qr/Button';
 import { textPayload } from '@/qr/payload';
 import { Field, Input, QrScreen } from '@/qr/QrScreen';
 
 export default function TextTab() {
-  const [text, setText] = useState('');
+  const [draft, setDraft] = useState('');
+  // What the code on screen was generated from; editing the draft leaves it alone until Generate.
+  const [payload, setPayload] = useState<string | null>(null);
+
+  function generate() {
+    setPayload(textPayload(draft));
+    Keyboard.dismiss();
+  }
 
   return (
-    <QrScreen title="Text QR" payload={textPayload(text)} hint="Type something and your QR code appears here.">
+    <QrScreen title="Text QR" payload={payload} hint="Write something, then tap Generate QR code.">
       <Field label="Your text">
         <Input
-          value={text}
-          onChangeText={setText}
+          value={draft}
+          onChangeText={setDraft}
           placeholder="Write anything…"
           multiline
           textAlignVertical="top"
           style={{ minHeight: 110 }}
         />
       </Field>
+      <Button label="Generate QR code" icon="qr_code_2" onPress={generate} disabled={!draft.trim()} />
     </QrScreen>
   );
 }
