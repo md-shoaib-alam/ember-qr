@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ember-qr",
+    "name": "Ember QR",
     "slug": "ember-qr",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,10 +16,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "pan",
+      "package": "com.sb_ranjha.emberqr"
     },
     "web": {
-      "output": "server",
+      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -32,11 +33,29 @@
           "imageWidth": 92
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class expo.modules.gl.** { *; }"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "908dd8df-2472-480c-8b1f-adb0fa61ed35"
+      }
     }
   }
 }
