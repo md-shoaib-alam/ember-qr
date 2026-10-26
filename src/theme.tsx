@@ -37,7 +37,9 @@ export type ThemeMode = 'system' | 'light' | 'dark';
 /** The palette actually in effect after resolving `mode` against the OS. */
 export type Scheme = 'light' | 'dark';
 
-const STORAGE_KEY = 'ember.themeMode';
+// v2: the app's default changed from "follow the OS" to light, and a stored v1 value would pin
+// every existing install to whatever it had, hiding the new default.
+const STORAGE_KEY = 'ember.themeMode.v2';
 
 type ThemeModeContextValue = {
   mode: ThemeMode;
@@ -56,9 +58,10 @@ function isMode(v: string | null): v is ThemeMode {
 
 export function ThemeModeProvider({ children }: { children: ReactNode }) {
   const system: Scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const [mode, setModeState] = useState<ThemeMode>('system');
+  // Light is the app's default; the OS setting only applies if the user picks `system`.
+  const [mode, setModeState] = useState<ThemeMode>('light');
 
-  // Restore the persisted choice once; fall back to system on any read error.
+  // Restore the persisted choice once; fall back to the default on any read error.
   useEffect(() => {
     let alive = true;
     AsyncStorage.getItem(STORAGE_KEY)
