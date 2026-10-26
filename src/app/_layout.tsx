@@ -2,8 +2,8 @@ import { useFonts } from 'expo-font';
 import { Tabs } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { useEffect } from 'react';
-import { View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AccessibilityInfo, Easing, useWindowDimensions, View } from 'react-native';
 
 import { EmberBackground } from '@/components/EmberBackground';
 import { Icon, type IconName } from '@/components/Icon';
@@ -17,6 +17,24 @@ const TABS: { name: string; title: string; icon: IconName }[] = [
   { name: 'phone', title: 'Phone', icon: 'call' },
 ];
 
+const SLIDE_MS = 260;
+
+function useReduceMotion() {
+  const [reduce, setReduce] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((r) => {
+      if (alive) setReduce(r);
+    });
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduce);
+    return () => {
+      alive = false;
+      sub.remove();
+    };
+  }, []);
+  return reduce;
+}
+
 export default function RootLayout() {
   return (
     <ThemeModeProvider>
@@ -28,6 +46,10 @@ export default function RootLayout() {
 function Root() {
   const c = useTheme();
   const { scheme } = useThemeMode();
+  const { width } = useWindowDimensions();
+  // The vendored navigator only animates when transitionSpec/animation is set, so passing undefined
+  // under reduce motion is what makes the swap instant instead of sliding.
+  const slide = !useReduceMotion();
   const [loaded, error] = useFonts({
     'Bricolage-800-40': require('@/assets/fonts/Bricolage-800-40.ttf'),
     'Bricolage-700-16': require('@/assets/fonts/Bricolage-700-16.ttf'),
@@ -53,7 +75,29 @@ function Root() {
       <EmberBackground />
       <Tabs
         tabBar={(props) => <LiquidTabBar {...props} />}
-        screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: 'transparent' } }}>
+        screenOptions={{
+          headerShown: false,
+          sceneStyle: { backgroundColor: 'transparent' },
+          transitionSpec: slide
+            ? { animation: 'timing', config: { duration: SLIDE_MS, easing: Easing.out(Easing.cubic) } }
+            : undefined,
+          // Full-width pages: the outgoing scene leaves in the direction of the tab order while the
+          // incoming one arrives from the other side.
+          sceneStyleInterpolator: slide
+            ? ({ current }) => ({
+                sceneStyle: {
+                  transform: [
+                    {
+                      translateX: current.progress.interpolate({
+                        inputRange: [-1, 0, 1],
+                        outputRange: [-width, 0, width],
+                      }),
+                    },
+                  ],
+                },
+              })
+            : undefined,
+        }}>
         {TABS.map((t) => (
           <Tabs.Screen
             key={t.name}
