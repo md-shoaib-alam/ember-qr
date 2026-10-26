@@ -1,8 +1,7 @@
 import { useIsFocused } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { type ReactNode, useRef, useState } from 'react';
+import { type ReactNode, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -20,7 +19,9 @@ import { captureRef } from 'react-native-view-shot';
 
 import { Icon } from '@/components/Icon';
 import { SunMoonToggle } from '@/components/SunMoonToggle';
-import { encodeQr, QrCode, qrToPngDataUrl } from '@/qr/QrCode';
+import { Button } from '@/qr/Button';
+import { encodeQr, QrCode, type QrMatrix, qrToPngDataUrl } from '@/qr/QrCode';
+import { QrSheet } from '@/qr/QrSheet';
 import { useTheme } from '@/theme';
 
 const QR_SIZE = 220;
@@ -38,26 +39,65 @@ export function QrScreen({ title, payload, hint, caption, children }: Props) {
   const c = useTheme();
   const focused = useIsFocused();
   const [sharing, setSharing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [sheet, setSheet] = useState(false);
   const shotRef = useRef<ViewInstance>(null);
-  const matrix = payload ? encodeQr(payload) : null;
+  // Encoding walks every module and rebuilds ~hundreds of views, so it must not ride every render.
+  const matrix = useMemo(() => (payload ? encodeQr(payload) : null), [payload]);
+  const note = caption ?? payload ?? '';
+
+  function webDownload(m: QrMatrix) {
+    const link = document.createElement('a');
+    link.href = qrToPngDataUrl(m);
+    link.download = 'ember-qr.png';
+    link.click();
+  }
+
+  function capture() {
+    return captureRef(shotRef, { format: 'png', quality: 1, width: 1024, height: 1024 });
+  }
 
   async function share() {
     if (!matrix) return;
     setSharing(true);
     try {
       if (isWeb) {
-        const link = document.createElement('a');
-        link.href = qrToPngDataUrl(matrix);
-        link.download = 'ember-qr.png';
-        link.click();
+        webDownload(matrix);
       } else {
-        const uri = await captureRef(shotRef, { format: 'png', quality: 1, width: 1024, height: 1024 });
+        const uri = await capture();
         await Sharing.shareAsync(uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: 'Share QR code' });
       }
     } catch (e) {
       Alert.alert('Could not share', e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setSharing(false);
+    }
+  }
+
+  async function download() {
+    if (!matrix) return;
+    if (isWeb) {
+      webDownload(matrix);
+      return;
+    }
+    setSaving(true);
+    try {
+      const uri = await capture();
+      // Loaded lazily so the web bundle never touches the native module.
+      const { Asset, requestPermissionsAsync } = await import('expo-media-library');
+      try {
+        await Asset.create(uri);
+      } catch {
+        // Only saving, so ask for write-only access rather than the whole photo library.
+        const perm = await requestPermissionsAsync(true);
+        if (!perm.granted) throw new Error('Photo access is needed to save the QR code.');
+        await Asset.create(uri);
+      }
+      Alert.alert('Saved', 'The QR code is in your gallery.');
+    } catch (e) {
+      Alert.alert('Could not save', e instanceof Error ? e.message : 'Please try again.');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -76,27 +116,24 @@ export function QrScreen({ title, payload, hint, caption, children }: Props) {
           <View style={[styles.card, styles.qrCard, { backgroundColor: c.surface, borderColor: c.border }]}>
             {matrix ? (
               <>
-                <View ref={shotRef} collapsable={false} style={styles.qrFrame}>
-                  <QrCode matrix={matrix} size={QR_SIZE} />
-                </View>
-                <Text style={[styles.caption, { color: c.muted }]} numberOfLines={1}>
-                  {caption ?? payload}
-                </Text>
                 <Pressable
-                  onPress={share}
-                  disabled={sharing}
-                  style={({ pressed }) => [styles.button, { backgroundColor: c.accent, opacity: pressed ? 0.85 : 1 }]}>
-                  {sharing ? (
-                    <ActivityIndicator color={c.onAccent} />
-                  ) : (
-                    <>
-                      <Icon name={isWeb ? 'download' : 'ios_share'} size={22} color={c.onAccent} />
-                      <Text style={[styles.buttonLabel, { color: c.onAccent }]}>
-                        {isWeb ? 'Download PNG' : 'Share QR code'}
-                      </Text>
-                    </>
-                  )}
+                  role="button"
+                  onPress={() => setSheet(true)}
+                  accessibilityLabel="Open QR code larger"
+                  style={({ pressed }) => [styles.qrFrame, { opacity: pressed ? 0.9 : 1 }]}>
+                  <View ref={shotRef} collapsable={false}>
+                    <QrCode matrix={matrix} size={QR_SIZE} />
+                  </View>
                 </Pressable>
+                <Text style={[styles.caption, { color: c.muted }]} numberOfLines={1}>
+                  {note}
+                </Text>
+                <Button
+                  onPress={share}
+                  busy={sharing}
+                  icon={isWeb ? 'download' : 'ios_share'}
+                  label={isWeb ? 'Download PNG' : 'Share QR code'}
+                />
               </>
             ) : (
               <View style={[styles.placeholder, { borderColor: c.border, backgroundColor: c.bg }]}>
@@ -113,6 +150,17 @@ export function QrScreen({ title, payload, hint, caption, children }: Props) {
           <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>{children}</View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <QrSheet
+        open={sheet}
+        matrix={matrix}
+        caption={note}
+        onClose={() => setSheet(false)}
+        onShare={share}
+        onDownload={download}
+        sharing={sharing}
+        downloading={saving}
+      />
     </SafeAreaView>
   );
 }
@@ -154,17 +202,6 @@ const styles = StyleSheet.create({
   qrCard: { alignItems: 'center' },
   qrFrame: { backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden' },
   caption: { fontSize: 13, maxWidth: '100%' },
-
-  button: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 52,
-    borderRadius: 16,
-  },
-  buttonLabel: { fontFamily: 'Bricolage-700-16', fontSize: 16 },
 
   placeholder: {
     alignSelf: 'stretch',

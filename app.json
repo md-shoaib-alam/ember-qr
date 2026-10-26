@@ -35,6 +35,14 @@
       ],
       "expo-sharing",
       [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Ember QR to access your photos so it can save QR codes to your gallery.",
+          "savePhotosPermission": "Allow Ember QR to save QR codes to your gallery.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
