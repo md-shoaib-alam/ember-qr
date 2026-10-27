@@ -5,9 +5,11 @@ import * as SystemUI from 'expo-system-ui';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Easing, useWindowDimensions, View } from 'react-native';
 
-import { EmberBackground } from '@/components/EmberBackground';
+import { EmberBackground, holdEmberBackground } from '@/components/EmberBackground';
 import { Icon, type IconName } from '@/components/Icon';
 import { LiquidTabBar } from '@/components/LiquidTabBar';
+import { tap } from '@/haptics';
+import { topUpHourlyAlerts } from '@/notifications';
 import { ThemeModeProvider, useTheme, useThemeMode } from '@/theme';
 
 const TABS: { name: string; title: string; icon: IconName }[] = [
@@ -64,6 +66,11 @@ function Root() {
     SystemUI.setBackgroundColorAsync(c.bg);
   }, [c.bg]);
 
+  // The hourly window is finite, so each launch refills it in the background.
+  useEffect(() => {
+    topUpHourlyAlerts().catch(() => {});
+  }, []);
+
   // Do not call SplashScreen.preventAutoHideAsync() here: it marks the splash user-controlled, which
   // disables expo-router's own release, and our hide() then landed after Android had already cancelled
   // a blocked first frame — the splash stayed over a live app in the preview build.
@@ -102,6 +109,13 @@ function Root() {
           <Tabs.Screen
             key={t.name}
             name={t.name}
+            listeners={{
+              tabPress: () => {
+                tap('hard');
+                // Two full-screen scenes move during the slide; the background shader can sit it out.
+                holdEmberBackground(SLIDE_MS + 140);
+              },
+            }}
             options={{
               title: t.title,
               tabBarIcon: ({ color, size, focused }) => (
