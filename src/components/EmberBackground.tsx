@@ -56,6 +56,16 @@ const SEED = 1453 % (2 * Math.PI);
 // The blobs drift slowly, so 30 fps looks identical and halves the GPU and JS-thread work.
 const FRAME_MS = 1000 / 30;
 
+// A tab switch moves two full-screen scenes, so the shader stands down for the duration. The hold
+// carries its own deadline: a missed release can only ever cost one frozen frame, never the loop.
+let holdUntil = 0;
+const holdListeners = new Set<() => void>();
+
+export function holdEmberBackground(ms: number) {
+  holdUntil = Date.now() + ms;
+  holdListeners.forEach((wake) => wake());
+}
+
 function toRgb(hexes: string[]) {
   return new Float32Array(
     hexes.flatMap((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255)),
@@ -122,7 +132,7 @@ export function EmberBackground() {
     function loop(now: number) {
       raf = 0;
       if (disposed || !active) return;
-      if (now - lastDraw >= FRAME_MS) {
+      if (Date.now() >= holdUntil && now - lastDraw >= FRAME_MS) {
         lastDraw = now;
         draw();
       }
@@ -148,9 +158,11 @@ export function EmberBackground() {
     });
 
     redraw.current = run;
+    holdListeners.add(run);
     dispose.current = () => {
       disposed = true;
       cancelAnimationFrame(raf);
+      holdListeners.delete(run);
       appSub.remove();
       motionSub.remove();
       gl.deleteBuffer(buf);
