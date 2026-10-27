@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 import { Icon, type IconName } from '@/components/Icon';
+import { tap } from '@/haptics';
 import { useTheme } from '@/theme';
 
 type Props = {
@@ -17,10 +18,14 @@ export function Button({ label, icon, onPress, variant = 'primary', disabled, bu
   const c = useTheme();
   const primary = variant === 'primary';
   const fg = primary ? c.onAccent : c.text;
+  const press = () => {
+    tap(primary ? 'hard' : 'soft');
+    onPress();
+  };
   return (
     <Pressable
       role="button"
-      onPress={onPress}
+      onPress={press}
       disabled={disabled || busy}
       style={({ pressed }) => [
         styles.button,
