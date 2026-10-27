@@ -25,6 +25,10 @@ export default function TextTab() {
           placeholder="Write anything…"
           multiline
           textAlignVertical="top"
+          returnKeyType="go"
+          // Multiline fields insert a newline on Return by default; here Return should generate.
+          submitBehavior="blurAndSubmit"
+          onSubmitEditing={generate}
           style={{ minHeight: 110 }}
         />
       </Field>
