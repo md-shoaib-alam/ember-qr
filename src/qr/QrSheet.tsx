@@ -1,4 +1,14 @@
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  Animated,
+  Modal,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/qr/Button';
@@ -7,6 +17,8 @@ import { useTheme } from '@/theme';
 
 const MAX_QR = 340;
 const BACKDROP = 0.45;
+// Past this much travel, letting go dismisses instead of springing back.
+const DISMISS_PX = 90;
 
 type Props = {
   open: boolean;
@@ -19,11 +31,39 @@ type Props = {
   downloading?: boolean;
 };
 
-/** Bottom sheet with the code at full size. */
+/** Bottom sheet with the code at full size, dismissed by dragging it down. */
 export function QrSheet({ open, matrix, caption, onClose, onShare, onDownload, sharing, downloading }: Props) {
   const c = useTheme();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const [drag] = useState(() => new Animated.Value(0));
+  const [pan] = useState(() =>
+    PanResponder.create({
+      // A drag has to clear a small threshold before it takes the touch, so taps still reach the
+      // buttons and the grabber.
+      onMoveShouldSetPanResponder: (_, g) => g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderMove: (_, g) => drag.setValue(Math.max(0, g.dy)),
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > DISMISS_PX || g.vy > 0.7) {
+          Animated.timing(drag, { toValue: height, duration: 160, useNativeDriver: true }).start(
+            ({ finished }) => {
+              if (finished) onClose();
+            },
+          );
+          return;
+        }
+        Animated.spring(drag, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(drag, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
+      },
+    }),
+  );
+
+  // A drag-dismiss parks the sheet below the screen, so the next open starts from rest.
+  useEffect(() => {
+    if (open) drag.setValue(0);
+  }, [open, drag]);
 
   if (!matrix) return null;
 
@@ -38,11 +78,16 @@ export function QrSheet({ open, matrix, caption, onClose, onShare, onDownload, s
         <View style={[StyleSheet.absoluteFill, styles.backdrop]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
         </View>
-        <View
+        <Animated.View
+          {...pan.panHandlers}
           accessibilityViewIsModal
           style={[
             styles.sheet,
-            { backgroundColor: c.surface, paddingBottom: insets.bottom + 20 },
+            {
+              backgroundColor: c.surface,
+              paddingBottom: insets.bottom + 20,
+              transform: [{ translateY: drag }],
+            },
           ]}>
           <View style={[styles.grabber, { backgroundColor: c.border }]} />
           <Text role="heading" style={[styles.title, { color: c.text }]}>
@@ -62,7 +107,7 @@ export function QrSheet({ open, matrix, caption, onClose, onShare, onDownload, s
               <Button label="Download" icon="download" variant="secondary" onPress={onDownload} busy={downloading} />
             </View>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
