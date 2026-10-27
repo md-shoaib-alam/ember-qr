@@ -128,12 +128,14 @@ export function QrScreen({ title, payload, hint, caption, children }: Props) {
                 <Text style={[styles.caption, { color: c.muted }]} numberOfLines={1}>
                   {note}
                 </Text>
-                <Button
-                  onPress={share}
-                  busy={sharing}
-                  icon={isWeb ? 'download' : 'ios_share'}
-                  label={isWeb ? 'Download PNG' : 'Share QR code'}
-                />
+                <View style={styles.shareSlot}>
+                  <Button
+                    onPress={share}
+                    busy={sharing}
+                    icon={isWeb ? 'download' : 'ios_share'}
+                    label={isWeb ? 'Download PNG' : 'Share QR code'}
+                  />
+                </View>
               </>
             ) : (
               <View style={[styles.placeholder, { borderColor: c.border, backgroundColor: c.bg }]}>
@@ -200,6 +202,8 @@ const styles = StyleSheet.create({
 
   card: { borderRadius: 24, borderWidth: 1, padding: 16, gap: 14 },
   qrCard: { alignItems: 'center' },
+  // Matches the code above it, so the action reads as part of the same block instead of a stub.
+  shareSlot: { width: QR_SIZE },
   qrFrame: { backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden' },
   caption: { fontSize: 13, maxWidth: '100%' },
 
