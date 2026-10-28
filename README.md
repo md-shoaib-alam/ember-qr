@@ -25,6 +25,15 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Releases
+
+Android releases are built on Expo (EAS) and published as GitHub Releases with the signed
+APK attached. The step-by-step, including how to check what is inside an APK and how to
+publish it, lives in **[docs/releasing.md](docs/releasing.md)**.
+
+For debugging, on-device checks and EAS build internals, see
+**[docs/README.md](docs/README.md)**.
+
 ## Get a fresh project
 
 When you're ready, run:

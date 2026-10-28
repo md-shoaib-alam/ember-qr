@@ -6,6 +6,9 @@ inside a release build — and how to *prove* a build is good instead of hoping.
 
 Every command here was run on this project unless marked otherwise.
 
+Shipping a build? The release workflow has its own guide:
+[docs/releasing.md](releasing.md) (EAS build → tag → GitHub Release).
+
 ---
 
 ## Contents
@@ -91,7 +94,7 @@ adb shell am start -W -n com.sb_ranjha.emberqr/.MainActivity   # startup timing
 npx eas-cli build -p android --profile preview --non-interactive
 npx eas-cli build:list -p android --limit 3 --json
 npx eas-cli build:view <build-id> --json
-npx eas-cli build:download --build-id <build-id> -p android
+npx eas-cli build:download --build-id <build-id>
 ```
 
 ---
@@ -694,7 +697,7 @@ npx eas-cli build -p android --profile preview --non-interactive
 # prints: See logs: https://expo.dev/accounts/<acct>/projects/ember-qr/builds/<id>
 
 npx eas-cli build:view <id> --json          # status, artifact urls, logFiles
-npx eas-cli build:download --build-id <id> -p android
+npx eas-cli build:download --build-id <id>
 ```
 
 Statuses: `IN_QUEUE` → `IN_PROGRESS` → `FINISHED` / `ERRORED` / `CANCELED`.
