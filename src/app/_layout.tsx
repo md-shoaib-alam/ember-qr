@@ -15,6 +15,7 @@ import { ThemeModeProvider, useTheme, useThemeMode } from '@/theme';
 const TABS: { name: string; title: string; icon: IconName }[] = [
   { name: 'index', title: 'Text', icon: 'edit_note' },
   { name: 'url', title: 'Link', icon: 'link' },
+  { name: 'scan', title: 'Scan', icon: 'photo_camera' },
   { name: 'wifi', title: 'Wi-Fi', icon: 'contactless' },
   { name: 'phone', title: 'Phone', icon: 'call' },
 ];
