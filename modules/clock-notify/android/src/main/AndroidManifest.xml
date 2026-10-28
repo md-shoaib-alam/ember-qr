@@ -1,0 +1,63 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+  <application>
+    <receiver
+      android:name=".ClockWidgetProvider"
+      android:exported="true"
+      android:label="@string/clock_widget_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/clock_widget_info" />
+    </receiver>
+
+    <receiver
+      android:name=".ClockBareWidgetProvider"
+      android:exported="true"
+      android:label="@string/clock_bare_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/clock_bare_info" />
+    </receiver>
+
+    <receiver
+      android:name=".ClockRowWidgetProvider"
+      android:exported="true"
+      android:label="@string/clock_row_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/clock_row_info" />
+    </receiver>
+
+    <receiver
+      android:name=".ClockScanWidgetProvider"
+      android:exported="true"
+      android:label="@string/clock_scan_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/clock_scan_info" />
+    </receiver>
+
+    <receiver
+      android:name=".BootReceiver"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+      </intent-filter>
+    </receiver>
+  </application>
+</manifest>

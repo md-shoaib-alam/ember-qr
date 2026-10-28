@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget variant 3 of 3: one line, built for a short cell. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/ClockCard"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="horizontal">
+
+    <TextClock
+        android:id="@+id/clock_hours"
+        style="@style/ClockDigit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:format12Hour="hh"
+        android:format24Hour="hh" />
+
+    <TextView
+        style="@style/ClockColon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/clock_separator" />
+
+    <TextClock
+        android:id="@+id/clock_minutes"
+        style="@style/ClockDigit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:format12Hour="mm"
+        android:format24Hour="mm" />
+
+    <TextView
+        style="@style/ClockColon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/clock_separator" />
+
+    <TextClock
+        android:id="@+id/clock_seconds"
+        style="@style/ClockDigit.Accent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:format12Hour="ss"
+        android:format24Hour="ss" />
+
+    <TextClock
+        android:id="@+id/clock_meridiem"
+        style="@style/ClockMeridiem.Row"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:format12Hour="a"
+        android:format24Hour="a" />
+</LinearLayout>

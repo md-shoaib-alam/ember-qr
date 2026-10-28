@@ -1,46 +1,55 @@
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, AppState, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { clockSupported, disableClock, enableClock, readClockEnabled } from '@/clock';
 import { tap } from '@/haptics';
-import { disableHourlyAlerts, enableHourlyAlerts, readAlertsEnabled } from '@/notifications';
 import { useTheme } from '@/theme';
 
-export function HourlyAlertsToggle() {
+export function ClockNotificationToggle() {
   const c = useTheme();
   const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (!clockSupported) return;
     let alive = true;
-    readAlertsEnabled().then((saved) => {
-      if (alive) setOn(saved);
+    const sync = () => {
+      readClockEnabled()
+        .then((saved) => {
+          if (alive) setOn(saved);
+        })
+        .catch(() => {});
+    };
+    // Coming back from system settings is the only way the switch changes behind our back.
+    sync();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') sync();
     });
     return () => {
       alive = false;
+      sub.remove();
     };
   }, []);
 
+  if (!clockSupported) return null;
+
   async function change(next: boolean) {
     tap('soft');
-    setOn(next);
     setBusy(true);
     try {
-      if (!next) {
-        await disableHourlyAlerts();
-        return;
-      }
-      const result = await enableHourlyAlerts();
-      if (result === 'denied') throw new Error('Notifications are blocked for Ember QR.');
-      if (result === 'inexact') {
-        Alert.alert(
-          'Alerts are on',
-          'Android may deliver them a few minutes late until "Alarms & reminders" is allowed for Ember QR in system settings.',
-        );
+      if (next) {
+        await enableClock();
+        setOn(true);
+      } else {
+        await disableClock();
+        setOn(false);
       }
     } catch (e) {
       setOn(false);
-      await disableHourlyAlerts();
-      Alert.alert('Could not turn on alerts', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(
+        'Could not turn the clock on',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
     } finally {
       setBusy(false);
     }
@@ -49,9 +58,10 @@ export function HourlyAlertsToggle() {
   return (
     <View style={[styles.row, { borderTopColor: c.border }]}>
       <View style={styles.texts}>
-        <Text style={[styles.title, { color: c.text }]}>Hourly time alerts</Text>
+        <Text style={[styles.title, { color: c.text }]}>Clock in notification</Text>
         <Text style={[styles.subtitle, { color: c.muted }]}>
-          A notification with the time, every hour, even when the app is closed.
+          A live clock pinned to the shade — swipe won’t clear it. Add the Ember clock widget from
+          your home screen.
         </Text>
       </View>
       <Switch

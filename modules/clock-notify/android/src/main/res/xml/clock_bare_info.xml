@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:description="@string/clock_bare_description"
+    android:initialLayout="@layout/clock_bare"
+    android:previewLayout="@layout/clock_bare"
+    android:minHeight="64dp"
+    android:minResizeHeight="64dp"
+    android:minResizeWidth="200dp"
+    android:minWidth="200dp"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen"
+    tools:targetApi="31" />

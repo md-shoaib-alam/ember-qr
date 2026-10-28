@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Viewfinder corners around four QR modules, so the shortcut reads as "scan a code". -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M4,9 V6 a2,2 0 0 1 2,-2 H9 M15,4 H18 a2,2 0 0 1 2,2 V9 M20,15 V18 a2,2 0 0 1 -2,2 H15 M9,20 H6 a2,2 0 0 1 -2,-2 V15"
+        android:strokeColor="@color/clock_accent"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2" />
+
+    <path
+        android:fillColor="@color/clock_accent"
+        android:pathData="M8,8 h3 v3 h-3 z M13,8 h3 v3 h-3 z M8,13 h3 v3 h-3 z M14,14 h2 v2 h-2 z" />
+</vector>

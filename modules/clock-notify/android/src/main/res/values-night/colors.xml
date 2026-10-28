@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="clock_tile_bg">#1F1B18</color>
+    <color name="clock_tile_border">#332C26</color>
+    <color name="clock_card_bg">#1F1B18</color>
+    <color name="clock_card_border">#332C26</color>
+    <color name="clock_digit">#F5EFE8</color>
+    <color name="clock_label">#A89C90</color>
+    <color name="clock_accent">#FF6B2C</color>
+    <color name="clock_meridiem_bg">#3B2418</color>
+    <color name="clock_meridiem_text">#FF6B2C</color>
+</resources>

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification content view: the shade already draws its own card, so this is the bare row of
+     tiles. TextClock carries @RemoteView, so SystemUI ticks each tile without the app running. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="1dp"
+    android:weightSum="3">
+
+    <LinearLayout
+        style="@style/ClockTile"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="3dp"
+        android:layout_weight="1">
+
+        <TextClock
+            android:id="@+id/clock_hours"
+            style="@style/ClockDigit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:format12Hour="hh"
+            android:format24Hour="hh" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                style="@style/ClockLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/clock_hours" />
+
+            <TextClock
+                android:id="@+id/clock_meridiem"
+                style="@style/ClockMeridiem"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="3dp"
+                android:format12Hour="a"
+                android:format24Hour="a" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        style="@style/ClockTile"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="3dp"
+        android:layout_weight="1">
+
+        <TextClock
+            android:id="@+id/clock_minutes"
+            style="@style/ClockDigit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:format12Hour="mm"
+            android:format24Hour="mm" />
+
+        <TextView
+            style="@style/ClockLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/clock_minutes" />
+    </LinearLayout>
+
+    <LinearLayout
+        style="@style/ClockTile"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="3dp"
+        android:layout_weight="1">
+
+        <TextClock
+            android:id="@+id/clock_seconds"
+            style="@style/ClockDigit.Accent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:format12Hour="ss"
+            android:format24Hour="ss" />
+
+        <TextView
+            style="@style/ClockLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/clock_seconds" />
+    </LinearLayout>
+</LinearLayout>

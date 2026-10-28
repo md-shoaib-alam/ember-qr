@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mirrors src/components/ClockCard.tsx: 24dp card, 18dp tiles, Bricolage, letter-spaced caps
+     labels. Sizes are a step smaller than the card because a launcher row is ~76dp tall.
+     Layout params stay on the elements: a style is not a dependable carrier for layout_width. -->
+<resources>
+    <style name="ClockCard">
+        <item name="android:background">@drawable/clock_card</item>
+        <item name="android:padding">8dp</item>
+    </style>
+
+    <style name="ClockTile">
+        <item name="android:background">@drawable/clock_tile</item>
+        <item name="android:gravity">center</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">5dp</item>
+    </style>
+
+    <style name="ClockDigit">
+        <item name="android:fontFamily">@font/bricolage_800</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:textColor">@color/clock_digit</item>
+        <item name="android:textSize">22sp</item>
+    </style>
+
+    <style name="ClockDigit.Accent">
+        <item name="android:textColor">@color/clock_accent</item>
+    </style>
+
+    <style name="ClockLabel">
+        <item name="android:fontFamily">@font/bricolage_700</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">@color/clock_label</item>
+        <item name="android:textSize">8sp</item>
+    </style>
+
+    <!-- No vertical padding: the pill then has the same height as the label it sits beside, so the
+         hours tile does not grow and the three labels stay on one line. -->
+    <style name="ClockMeridiem">
+        <item name="android:background">@drawable/clock_meridiem</item>
+        <item name="android:fontFamily">@font/bricolage_700</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:paddingStart">3dp</item>
+        <item name="android:paddingEnd">3dp</item>
+        <item name="android:textColor">@color/clock_meridiem_text</item>
+        <item name="android:textSize">8sp</item>
+    </style>
+
+    <style name="ClockMeridiem.Row">
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
+        <item name="android:textSize">10sp</item>
+    </style>
+
+    <style name="ClockScanTitle">
+        <item name="android:fontFamily">@font/bricolage_800</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">@color/clock_accent</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="ClockColon">
+        <item name="android:fontFamily">@font/bricolage_700</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:paddingStart">2dp</item>
+        <item name="android:paddingEnd">2dp</item>
+        <item name="android:textColor">@color/clock_label</item>
+        <item name="android:textSize">20sp</item>
+    </style>
+</resources>

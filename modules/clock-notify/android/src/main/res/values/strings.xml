@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clock_widget_label">Ember clock</string>
+    <string name="clock_widget_description">The Ember clock: hours, minutes and seconds in three tiles on a card.</string>
+    <string name="clock_bare_label">Ember clock · Bare</string>
+    <string name="clock_bare_description">The Ember clock tiles without the card, for a busy wallpaper.</string>
+    <string name="clock_row_label">Ember clock · Row</string>
+    <string name="clock_row_description">The Ember clock on a single line, sized for a short cell.</string>
+    <string name="clock_hours">HOURS</string>
+    <string name="clock_minutes">MINUTES</string>
+    <string name="clock_seconds">SECONDS</string>
+    <string name="clock_separator">:</string>
+    <string name="clock_scan_label">Ember scan</string>
+    <string name="clock_scan_description">A shortcut that opens the camera to scan a QR code.</string>
+    <string name="clock_scan_title">SCAN QR</string>
+    <string name="clock_scan_caption">OPEN CAMERA</string>
+    <string name="clock_scan_action">Scan a QR code</string>
+</resources>

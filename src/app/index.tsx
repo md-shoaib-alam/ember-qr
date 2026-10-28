@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Keyboard } from 'react-native';
 
-import { HourlyAlertsToggle } from '@/components/HourlyAlertsToggle';
+import { ClockCard } from '@/components/ClockCard';
+import { ClockNotificationToggle } from '@/components/ClockNotificationToggle';
 import { Button } from '@/qr/Button';
 import { textPayload } from '@/qr/payload';
 import { Field, Input, QrScreen } from '@/qr/QrScreen';
@@ -33,7 +34,8 @@ export default function TextTab() {
         />
       </Field>
       <Button label="Generate QR code" icon="qr_code_2" onPress={generate} disabled={!draft.trim()} />
-      <HourlyAlertsToggle />
+      <ClockCard />
+      <ClockNotificationToggle />
     </QrScreen>
   );
 }

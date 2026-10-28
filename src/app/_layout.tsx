@@ -8,8 +8,8 @@ import { AccessibilityInfo, Easing, useWindowDimensions, View } from 'react-nati
 import { EmberBackground, holdEmberBackground } from '@/components/EmberBackground';
 import { Icon, type IconName } from '@/components/Icon';
 import { LiquidTabBar } from '@/components/LiquidTabBar';
+import { resumeClock } from '@/clock';
 import { tap } from '@/haptics';
-import { topUpHourlyAlerts } from '@/notifications';
 import { ThemeModeProvider, useTheme, useThemeMode } from '@/theme';
 
 const TABS: { name: string; title: string; icon: IconName }[] = [
@@ -67,9 +67,10 @@ function Root() {
     SystemUI.setBackgroundColorAsync(c.bg);
   }, [c.bg]);
 
-  // The hourly window is finite, so each launch refills it in the background.
+  // An ongoing notification can be dropped by an OEM "clear all" or a force-stop, so each launch
+  // puts it back when the switch is still on.
   useEffect(() => {
-    topUpHourlyAlerts().catch(() => {});
+    resumeClock().catch(() => {});
   }, []);
 
   // Do not call SplashScreen.preventAutoHideAsync() here: it marks the splash user-controlled, which
