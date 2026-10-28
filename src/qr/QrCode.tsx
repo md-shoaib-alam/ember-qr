@@ -1,7 +1,9 @@
 import { qr, type Module } from 'headless-qr';
 import { View } from 'react-native';
 
-const QUIET_ZONE = 4;
+// ISO 18004 asks for 4 modules of light margin, but on the white tile the app draws that reads as a
+// wide white frame around a short code. Two still scans off a light background.
+const QUIET_ZONE = 2;
 
 type Cell = { x: number; y: number; s: number; r: number; dark: boolean };
 export type QrMatrix = { size: number; cells: Cell[] };
