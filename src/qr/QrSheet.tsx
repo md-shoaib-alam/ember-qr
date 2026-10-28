@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Modal,
@@ -8,6 +8,7 @@ import {
   Text,
   View,
   useWindowDimensions,
+  type PanResponderInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -35,34 +36,54 @@ type Props = {
 export function QrSheet({ open, matrix, caption, onClose, onShare, onDownload, sharing, downloading }: Props) {
   const c = useTheme();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const [drag] = useState(() => new Animated.Value(0));
-  const [pan] = useState(() =>
-    PanResponder.create({
-      // A drag has to clear a small threshold before it takes the touch, so taps still reach the
-      // buttons and the grabber.
-      onMoveShouldSetPanResponder: (_, g) => g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx),
-      onPanResponderMove: (_, g) => drag.setValue(Math.max(0, g.dy)),
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > DISMISS_PX || g.vy > 0.7) {
-          Animated.timing(drag, { toValue: height, duration: 160, useNativeDriver: true }).start(
-            ({ finished }) => {
-              if (finished) onClose();
-            },
-          );
-          return;
-        }
-        Animated.spring(drag, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(drag, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
-      },
-    }),
-  );
+  // The PanResponder is built once, so the callback it settles with has to come from a ref.
+  const closeRef = useRef(onClose);
+  // How far the sheet is actually pulled. On Android the gesture can end through `terminate`
+  // instead of `release`, and the gesture state at that point does not carry the travel, so the
+  // dismissal is decided from the distance the sheet was moved rather than from `gestureState`.
+  const moved = useRef(0);
+  const [pan, setPan] = useState<PanResponderInstance | null>(null);
+
+  useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    function settle(fling: boolean) {
+      const far = fling || moved.current > DISMISS_PX;
+      moved.current = 0;
+      if (far) {
+        // The Modal's own slide-out is the dismissal animation, so nothing has to wait for a JS
+        // animation to report completion — that callback is what never arrived on Android.
+        closeRef.current();
+        return;
+      }
+      Animated.spring(drag, { toValue: 0, useNativeDriver: false, bounciness: 0 }).start();
+    }
+    // Built in an effect, not during render, so the handlers can read the refs above safely.
+    setPan(
+      PanResponder.create({
+        // A drag has to clear a small threshold before it takes the touch, so taps still reach the
+        // buttons and the grabber.
+        onMoveShouldSetPanResponder: (_, g) => g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx),
+        onPanResponderMove: (_, g) => {
+          moved.current = Math.max(0, g.dy);
+          drag.setValue(moved.current);
+        },
+        onPanResponderRelease: (_, g) => settle(g.vy > 0.7),
+        onPanResponderTerminate: () => settle(false),
+      }),
+    );
+  }, [drag]);
 
   // A drag-dismiss parks the sheet below the screen, so the next open starts from rest.
   useEffect(() => {
-    if (open) drag.setValue(0);
+    if (open) {
+      moved.current = 0;
+      drag.setValue(0);
+    }
   }, [open, drag]);
 
   if (!matrix) return null;
@@ -79,7 +100,7 @@ export function QrSheet({ open, matrix, caption, onClose, onShare, onDownload, s
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
         </View>
         <Animated.View
-          {...pan.panHandlers}
+          {...(pan?.panHandlers ?? {})}
           accessibilityViewIsModal
           style={[
             styles.sheet,
