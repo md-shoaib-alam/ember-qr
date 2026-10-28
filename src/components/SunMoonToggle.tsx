@@ -23,8 +23,8 @@ import { bgFor, useTheme, useThemeMode, type Scheme } from '@/theme';
  * large size (committing the theme mid-swap), then collapses back into the button.
  */
 
-const SWAP_MS = 480;
-const TRAVEL_MS = 260;
+const SWAP_MS = 900;
+const TRAVEL_MS = 420;
 const STEPS = 30;
 const ARC_RADIUS = 115;
 const QUARTER_TURN = Math.PI / 2;
